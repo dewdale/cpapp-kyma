@@ -1,0 +1,47 @@
+{
+  "name": "cpapp-kyma",
+  "version": "1.0.0",
+  "description": "A simple CAP project.",
+  "repository": "<Add your repository here>",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@sap/cds": "^6",
+    "@sap/xssec": "^3",
+    "express": "^4",
+    "hdb": "^0.19.0",
+    "passport": "^0",
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "@sap/ux-specification": "^1.108.3"
+  },
+  "scripts": {
+    "start": "cds-serve"
+  },
+  "engines": {
+    "node": ">14.18"
+  },
+  "sapux": [
+    "app/risks",
+    "app/mitigations"
+  ],
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sql"
+      },
+      "[production]": {
+        "auth": {
+          "kind": "xsuaa"
+        },
+        "db": {
+          "kind": "hana-cloud"
+        }
+      }
+    }
+  },
+  "config": {
+    "imagePrefix": "dewdale"
+  }
+}

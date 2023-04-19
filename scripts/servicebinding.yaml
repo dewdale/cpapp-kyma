@@ -1,0 +1,11 @@
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceBinding
+metadata:
+  name: dummy-name-api-sm-container
+  labels:
+    app.kubernetes.io/name: api
+    app.kubernetes.io/instance: dummy-name
+    app.kubernetes.io/component: api
+    app.kubernetes.io/partOf: dummy
+spec:
+  serviceInstanceName: dummy-name-sm-container
