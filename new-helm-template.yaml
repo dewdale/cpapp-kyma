@@ -50,11 +50,29 @@ kind: ServiceAccount
 metadata:
   name: cpapp-hana-deployer
 ---
+# Source: cpapp-kyma/charts/html5-apps-deployer/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cpapp-html5-apps-deployer
+---
 # Source: cpapp-kyma/charts/srv/templates/service-account.yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: cpapp-srv
+---
+# Source: cpapp-kyma/templates/html5-apps-deployer-configmap.yaml
+# Please do not modify this file. This file may be overwritten.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "cpapp-html5-apps-deployer-configmap"
+  namespace: "sameel-baker"
+data:
+  BACKEND_DESTINATIONS: >
+    [{"Authentication":"NoAuthentication","HTML5.forwardAuthToken":"true","Name":"cpapp-srv","ProxyType":"Internet","Type":"HTTP","URL":"https://cpapp-srv-sameel-baker.c-39b7f17.stage.kyma.ondemand.com","sap.cloud.service":"cpapp01.service"}]
 ---
 # Source: cpapp-kyma/charts/srv/templates/service.yaml
 apiVersion: v1
@@ -106,7 +124,7 @@ spec:
       automountServiceAccountToken: false
       serviceAccountName: cpapp-srv
       containers:
-      - image: dewdale/cpapp-srv:latest
+      - image: dewdale/cpapp-kyma-srv:latest
         name: srv
         ports:
         - name: http
@@ -277,6 +295,100 @@ spec:
         secret:
           secretName: cpapp-schema-binding
 ---
+# Source: cpapp-kyma/charts/html5-apps-deployer/templates/job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    helm.sh/revision: "1"
+    helm.sh/chart: html5-apps-deployer-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: html5-apps-deployer
+    app.kubernetes.io/instance: cpapp
+  name: cpapp-html5-apps-deployer-0001
+spec:
+  completions: 1
+  manualSelector: false
+  parallelism: 1
+  ttlSecondsAfterFinished: 1209600
+  template:
+    metadata:
+      labels:
+        helm.sh/revision: "1"
+        helm.sh/chart: html5-apps-deployer-0.1.0
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: html5-apps-deployer
+        app.kubernetes.io/instance: cpapp
+      annotations:
+        sidecar.istio.io/inject: "false"
+        container.apparmor.security.beta.kubernetes.io/html5-apps-deployer: runtime/default
+    spec:
+      imagePullSecrets:
+        - name: container-registry
+      automountServiceAccountToken: false
+      serviceAccountName: cpapp-html5-apps-deployer
+      containers:
+      - image: dewdale/cpapp-html5-deployer:latest
+        name: html5-apps-deployer
+        env:
+        - name: EXIT
+          value: "1"
+        - name: EXIT_PROCESS_AFTER_UPLOAD
+          value: "true"
+        - name: TMPDIR
+          value: /tmp
+        - name: SERVICE_BINDING_ROOT
+          value: /bindings
+        - name: SAP_CLOUD_SERVICE
+          value: cpapp01.service
+        envFrom:
+        - configMapRef:
+            name: cpapp-html5-apps-deployer-configmap
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 1G
+          requests:
+            cpu: 1000m
+            memory: 1G
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: false
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
+        
+        - mountPath: /bindings/destination/
+          name: destination-binding
+          readOnly: true
+        - mountPath: /bindings/html5-apps-repo/
+          name: html5-apps-repo-binding
+          readOnly: true
+        - mountPath: /bindings/xsuaa/
+          name: xsuaa-binding
+          readOnly: true
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      
+      - name: destination-binding
+        secret:
+          secretName: cpapp-html5-apps-deployer-destination
+      - name: html5-apps-repo-binding
+        secret:
+          secretName: cpapp-html5-apps-deployer-html5-apps-repo
+      - name: xsuaa-binding
+        secret:
+          secretName: cpapp-html5-apps-deployer-xsuaa
+---
 # Source: cpapp-kyma/charts/srv/templates/api-rule.yaml
 apiVersion: gateway.kyma-project.io/v1beta1
 kind: APIRule
@@ -306,6 +418,51 @@ spec:
         - HEAD
         path: /.*
 ---
+# Source: cpapp-kyma/charts/html5-apps-deployer/templates/service-binding.yaml
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceBinding
+metadata:
+  name: cpapp-html5-apps-deployer-destination
+  labels:
+    helm.sh/revision: "1"
+    helm.sh/chart: html5-apps-deployer-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: html5-apps-deployer
+    app.kubernetes.io/instance: cpapp
+spec:
+  serviceInstanceName: cpapp-destination
+  secretKey: credentials
+---
+# Source: cpapp-kyma/charts/html5-apps-deployer/templates/service-binding.yaml
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceBinding
+metadata:
+  name: cpapp-html5-apps-deployer-html5-apps-repo
+  labels:
+    helm.sh/revision: "1"
+    helm.sh/chart: html5-apps-deployer-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: html5-apps-deployer
+    app.kubernetes.io/instance: cpapp
+spec:
+  serviceInstanceName: cpapp-html5-apps-repo-host
+  secretKey: credentials
+---
+# Source: cpapp-kyma/charts/html5-apps-deployer/templates/service-binding.yaml
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceBinding
+metadata:
+  name: cpapp-html5-apps-deployer-xsuaa
+  labels:
+    helm.sh/revision: "1"
+    helm.sh/chart: html5-apps-deployer-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: html5-apps-deployer
+    app.kubernetes.io/instance: cpapp
+spec:
+  serviceInstanceName: cpapp-xsuaa
+  secretKey: credentials
+---
 # Source: cpapp-kyma/charts/srv/templates/service-binding.yaml
 apiVersion: services.cloud.sap.com/v1
 kind: ServiceBinding
@@ -325,6 +482,24 @@ spec:
     rotatedBindingTTL: 24h
     rotationFrequency: 720h
 ---
+# Source: cpapp-kyma/charts/destination/templates/serviceinstance.yaml
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceInstance
+metadata:
+  labels:
+    helm.sh/revision: "1"
+    helm.sh/chart: destination-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: destination
+    app.kubernetes.io/instance: cpapp
+  name: cpapp-destination
+spec:
+  serviceOfferingName: destination
+  servicePlanName: lite
+  parameters:
+    HTML5Runtime_enabled: true
+    version: 1.0.0
+---
 # Source: cpapp-kyma/charts/hana/templates/serviceinstance.yaml
 apiVersion: services.cloud.sap.com/v1
 kind: ServiceInstance
@@ -339,6 +514,21 @@ metadata:
 spec:
   serviceOfferingName: hana
   servicePlanName: hdi-shared
+---
+# Source: cpapp-kyma/charts/html5-apps-repo-host/templates/serviceinstance.yaml
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceInstance
+metadata:
+  labels:
+    helm.sh/revision: "1"
+    helm.sh/chart: html5-apps-repo-host-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: html5-apps-repo-host
+    app.kubernetes.io/instance: cpapp
+  name: cpapp-html5-apps-repo-host
+spec:
+  serviceOfferingName: html5-apps-repo
+  servicePlanName: app-host
 ---
 # Source: cpapp-kyma/charts/xsuaa/templates/serviceinstance.yaml
 apiVersion: services.cloud.sap.com/v1

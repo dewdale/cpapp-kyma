@@ -6,22 +6,22 @@ service RiskService {
   entity Risks  @(restrict : [
             {
                 grant : [ 'READ' ],
-                to : [ 'RiskViewer' ]
+                to : [ 'RiskViewer-SB' ]
             },
             {
                 grant : [ '*' ],
-                to : [ 'RiskManager' ]
+                to : [ 'RiskManager-SB' ]
             }
       ])as projection on my.Risks;
     annotate Risks with @odata.draft.enabled;
  entity Mitigations   @(restrict : [
             {
                 grant : [ 'READ' ],
-                to : [ 'RiskViewer' ]
+                to : [ 'RiskViewer-SB' ]
             },
             {
                 grant : [ '*' ],
-                to : [ 'RiskManager' ]
+                to : [ 'RiskManager-SB' ]
             }
       ])as projection on my.Mitigations;
     annotate Mitigations with @odata.draft.enabled;

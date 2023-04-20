@@ -150,6 +150,6 @@
     },
     "sap.cloud": {
       "public": true,
-      "service": "cpapp.service"
+      "service": "cpapp01.service"
     }
 }
