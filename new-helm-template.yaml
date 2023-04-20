@@ -1,0 +1,359 @@
+---
+# Source: cpapp-kyma/charts/srv/templates/network-policy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: cpapp-srv
+  labels:
+    helm.sh/revision: "1"
+    helm.sh/chart: srv-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: srv
+    app.kubernetes.io/instance: cpapp
+spec:
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: istio-ingressgateway
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: istio-system
+  policyTypes:
+  - Ingress
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: srv
+      app.kubernetes.io/instance: cpapp
+---
+# Source: cpapp-kyma/charts/srv/templates/pod-disruption-budget.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cpapp-srv
+  labels:
+    helm.sh/revision: "1"
+    helm.sh/chart: srv-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: srv
+    app.kubernetes.io/instance: cpapp
+spec:
+  maxUnavailable: 10%
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: srv
+      app.kubernetes.io/instance: cpapp
+---
+# Source: cpapp-kyma/charts/hana-deployer/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cpapp-hana-deployer
+---
+# Source: cpapp-kyma/charts/srv/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cpapp-srv
+---
+# Source: cpapp-kyma/charts/srv/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cpapp-srv
+  labels:
+    helm.sh/revision: "1"
+    helm.sh/chart: srv-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: srv
+    app.kubernetes.io/instance: cpapp
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: srv
+    app.kubernetes.io/instance: cpapp
+---
+# Source: cpapp-kyma/charts/srv/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    helm.sh/revision: "1"
+    helm.sh/chart: srv-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: srv
+    app.kubernetes.io/instance: cpapp
+  name: cpapp-srv
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: srv
+      app.kubernetes.io/instance: cpapp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: srv
+        app.kubernetes.io/instance: cpapp
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/srv: runtime/default
+    spec:
+      imagePullSecrets:
+        - name: container-registry
+      automountServiceAccountToken: false
+      serviceAccountName: cpapp-srv
+      containers:
+      - image: dewdale/cpapp-srv:latest
+        name: srv
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        envFrom:
+        env:
+        - name: SERVICE_BINDING_ROOT
+          value: /bindings
+        - name: PORT
+          value: "8080"
+        - name: TMPDIR
+          value: /tmp
+        - name: APPLICATION_NAME
+          value: cpapp-srv
+        - name: APPLICATION_URI
+          value: cpapp-srv
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+        startupProbe:
+          httpGet:
+            path: /
+            port: http
+          failureThreshold: 15
+          periodSeconds: 2
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: bindings-root
+          mountPath: /bindings
+        
+        - mountPath: /bindings/auth/
+          name: "auth"
+          readOnly: true
+        - mountPath: /bindings/db/
+          name: "db"
+          readOnly: true
+        resources:
+          limits:
+            ephemeral-storage: 1G
+            memory: 500M
+          requests:
+            cpu: 500m
+            ephemeral-storage: 1G
+            memory: 500M
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: false
+          seccompProfile:
+            type: RuntimeDefault
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+      topologySpreadConstraints:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: srv
+            app.kubernetes.io/instance: cpapp
+        maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: srv
+            app.kubernetes.io/instance: cpapp
+        maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+      volumes:
+      - emptyDir: {}
+        name: tmp
+      - emptyDir: {}
+        name: bindings-root
+      
+      - name: auth
+        secret:
+          secretName: cpapp-srv-auth
+      - name: db
+        secret:
+          secretName: cpapp-schema-binding
+---
+# Source: cpapp-kyma/charts/hana-deployer/templates/job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    helm.sh/revision: "1"
+    helm.sh/chart: hana-deployer-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: hana-deployer
+    app.kubernetes.io/instance: cpapp
+  name: cpapp-hana-deployer-0001
+spec:
+  completions: 1
+  manualSelector: false
+  parallelism: 1
+  ttlSecondsAfterFinished: 1209600
+  template:
+    metadata:
+      labels:
+        helm.sh/revision: "1"
+        helm.sh/chart: hana-deployer-0.1.0
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: hana-deployer
+        app.kubernetes.io/instance: cpapp
+      annotations:
+        sidecar.istio.io/inject: "false"
+        container.apparmor.security.beta.kubernetes.io/hana-deployer: runtime/default
+    spec:
+      imagePullSecrets:
+        - name: container-registry
+      automountServiceAccountToken: false
+      serviceAccountName: cpapp-hana-deployer
+      containers:
+      - image: dewdale/cpapp-hana-deployer:latest
+        name: hana-deployer
+        env:
+        - name: EXIT
+          value: "1"
+        - name: EXIT_PROCESS_AFTER_UPLOAD
+          value: "true"
+        - name: TMPDIR
+          value: /tmp
+        - name: SERVICE_BINDING_ROOT
+          value: /bindings
+        envFrom:
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 1G
+          requests:
+            cpu: 1000m
+            memory: 1G
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: false
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
+        
+        - mountPath: /bindings/hana/
+          name: hana-binding
+          readOnly: true
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      
+      - name: hana-binding
+        secret:
+          secretName: cpapp-schema-binding
+---
+# Source: cpapp-kyma/charts/srv/templates/api-rule.yaml
+apiVersion: gateway.kyma-project.io/v1beta1
+kind: APIRule
+metadata:
+  name: cpapp-srv
+  labels:
+    helm.sh/revision: "1"
+    helm.sh/chart: srv-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: srv
+    app.kubernetes.io/instance: cpapp
+spec:
+  gateway: kyma-gateway.kyma-system.svc.cluster.local
+  host: cpapp-srv-sameel-baker
+  service:
+    name: cpapp-srv
+    port: 8080
+  rules:
+      - accessStrategies:
+        - handler: allow
+        methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - HEAD
+        path: /.*
+---
+# Source: cpapp-kyma/charts/srv/templates/service-binding.yaml
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceBinding
+metadata:
+  name: cpapp-srv-auth
+  labels:
+    helm.sh/revision: "1"
+    helm.sh/chart: srv-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: srv
+    app.kubernetes.io/instance: cpapp
+spec:
+  serviceInstanceName: cpapp-xsuaa
+  secretKey: credentials
+  credentialsRotationPolicy: 
+    enabled: false
+    rotatedBindingTTL: 24h
+    rotationFrequency: 720h
+---
+# Source: cpapp-kyma/charts/hana/templates/serviceinstance.yaml
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceInstance
+metadata:
+  labels:
+    helm.sh/revision: "1"
+    helm.sh/chart: hana-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: hana
+    app.kubernetes.io/instance: cpapp
+  name: cpapp-hana
+spec:
+  serviceOfferingName: hana
+  servicePlanName: hdi-shared
+---
+# Source: cpapp-kyma/charts/xsuaa/templates/serviceinstance.yaml
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceInstance
+metadata:
+  labels:
+    helm.sh/revision: "1"
+    helm.sh/chart: xsuaa-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: xsuaa
+    app.kubernetes.io/instance: cpapp
+  name: cpapp-xsuaa
+spec:
+  serviceOfferingName: xsuaa
+  servicePlanName: application
+  parameters:
+    tenant-mode: dedicated
+    xsappname: cpapp-kyma

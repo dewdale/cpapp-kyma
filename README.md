@@ -100,3 +100,26 @@ This installs the Helm chart from the chart folder with the release name booksho
 
 Another version
 `helm upgrade cpapp ./chart --install --set-file xsuaa.jsonParameters=xs-security.json`
+
+
+
+FIORI UI
+
+After using fiori generator 
+https://developers.sap.com/tutorials/btp-app-kyma-work-zone-setup.html and correcting issue in manifest wwith forum siggestion in https://answers.sap.com/questions/13564516/error-on-command-fiori-add-deploy-config-cf.html
+by Manju to replace the manifest.sjson for risk and mitigation.
+
+
+pack build $CONTAINER_REGISTRY/cpapp-html5-deployer \
+     --env BP_NODE_RUN_SCRIPTS=build \
+     --path app \
+     --buildpack gcr.io/paketo-buildpacks/nodejs \
+     --builder paketobuildpacks/builder:base
+
+#Add the HTML5 Application Deployer to your Helm chart:
+
+Upgrade @sap/cds-dk to @sap/cds-dk: 6.7.1 to for 
+`cds add html5-repo` feature support
+
+
+

@@ -11,16 +11,21 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 If release name contains chart name it will be used as a full name.
 */}}
 {{- define "web-application.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+  {{- if .Values.fullnameOverride }}
+    {{- if gt (len .Values.fullnameOverride) 63 }}
+      {{- fail (printf "name exceeds 63 characters: '%s'" .Values.fullnameOverride) }}
+    {{- end }}
+    {{- .Values.fullnameOverride }}
+  {{- else }}
+    {{- $name := default .Chart.Name .Values.nameOverride }}
+    {{- if not (eq .Release.Name $name)}}
+      {{- $name = printf "%s-%s" .Release.Name $name }}
+    {{- end }}
+    {{- if gt (len $name) 63 }}
+      {{- fail (printf "name exceeds 63 characters: '%s'" $name) }}
+    {{- end }}
+    {{- $name }}
+  {{- end }}
 {{- end }}
 
 {{/*
@@ -70,7 +75,7 @@ Define Host for the APIRule
 */}}
 {{- define "web-application.exposeHost" -}}
 {{- if .Values.expose.host }}
-{{- .Values.expose.host }}
+{{- tpl .Values.expose.host . }}
 {{- else }}
 {{- $name := (include "web-application.fullname" .) }}
 {{- if hasPrefix $name .Release.Namespace }}
@@ -92,7 +97,8 @@ Define the application uri which will be used for the VCAP_APPLICATION env varia
 Service Binding secret mounts
 */}}
 {{- define "web-application.serviceMounts" -}}
-{{- range $name, $params := .Values.bindings }}
+{{- $bindings := omit .Values.bindings "defaultProperties" -}}
+{{- range $name, $params := $bindings }}
 - mountPath: /bindings/{{ $name }}/
   name: "{{ $name }}"
   readOnly: true
@@ -103,7 +109,8 @@ Service Binding secret mounts
 Service Binding secret volumes
 */}}
 {{- define "web-application.serviceVolumes" -}}
-{{- range $name, $params := .Values.bindings }}
+{{- $bindings := omit .Values.bindings "defaultProperties" -}}
+{{- range $name, $params := $bindings }}
 {{- $secretName := (include "web-application.bindingName" (dict "root" $ "name" $name)) }}
 {{- if $params.fromSecret }}
 {{- $secretName = $params.fromSecret}}
@@ -173,7 +180,7 @@ If release name contains chart name it will be used as service instance name.
 {{- range $k, $v := .Values.env }}
   {{- $variable := dict }}
   {{/*
-    We support two versions to provide environment varialbes: as an array and as a map
+    We support two versions to provide environment variables: as an array and as a map
 
     env:
     - name: TEST
@@ -215,26 +222,9 @@ If release name contains chart name it will be used as service instance name.
 {{- define "web-application.processEnvFrom" -}}
 {{- $result := dict }}
 {{- $variables := list }}
-{{- range $secretName := .Values.envSecretNames }}
-  {{- $variable := dict }}
-  {{- $_ := set $variable "name" $secretName -}}
-  {{- $variables = append $variables (dict "secretRef" $variable)}}
-{{- end }}
 {{- range $envFrom := .Values.envFrom }}
   {{- $variables = append $variables $envFrom }}
 {{- end }}
 {{- $_ := set $result "vars" $variables }}
 {{- (fromYaml (tpl (toYaml $result) $)) | mustToJson }}
-{{- end }}
-
-{{- define "web-application.ha" -}}
-{{- $ha := true }}
-{{- if hasKey .Values "ha"}}
-  {{- if hasKey .Values.ha "enabled" }}
-    {{- $ha = .Values.ha.enabled }}
-  {{- end }}
-{{- end }}
-{{- if $ha }}
-true
-{{- end}}
 {{- end }}

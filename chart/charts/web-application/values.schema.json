@@ -225,19 +225,6 @@
                 }
             }
         },
-        "ha": {
-            "$id": "#/properties/ha",
-            "title": "High Availability configuration",
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-                "enabled": {
-                    "$id": "#/properties/ha/properties/enabled",
-                    "description": "[Deprecated: Will be always enabled in future] Enables additional high-availability related configuration, like Pod Disruption Budget and Topology Spread Constraints.",
-                    "type": "boolean"
-                }
-            }
-        },
         "resources": {
             "$id": "#/properties/resources",
             "title": "Pod resources configuration",
@@ -295,39 +282,6 @@
                         "memory": {
                             "description": "Amount of memory, mesaured in bytes. For more info, see https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#meaning-of-memory",
                             "$id": "#/properties/resources/properties/limits/properties/memory",
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "health_check": {
-            "$id": "#/properties/health_check",
-            "title": "Health-check configuration",
-            "description": "[Deprecated] Use health instead",
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-                "liveness": {
-                    "$id": "#/properties/health_check/properties/liveness",
-                    "description": "Liveness-probe configuration.",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "path": {
-                            "description": "HTTP path used by Kubernetes, to perform health-check calls.",
-                            "type": "string"
-                        }
-                    }
-                },
-                "readiness": {
-                    "$id": "#/properties/health_check/properties/readiness",
-                    "description": "Readiness-probe configuration.",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "path": {
-                            "description": "HTTP path used by Kubernetes, to perform health-check calls.",
                             "type": "string"
                         }
                     }
@@ -419,18 +373,17 @@
                 }
             }
         },
-        "startupTimeout": {
-            "$id": "#/properties/startupTimeout",
-            "description": "[Deprecated] use startupTimeoutSeconds instead",
-            "type": "integer",
-            "minimum": 1
-        },
         "startupTimeoutSeconds": {
             "$id": "#/properties/startupTimeoutSeconds",
             "description": "Initial timeout in seconds, during which the app must start giving the response to the liveness-probe.",
             "type": "integer",
             "minimum": 1,
             "default": 30
+        },
+        "readOnlyRootFilesystem": {
+            "$id": "#/properties/readOnlyRootFilesystem",
+            "description": "Use read only filesystem for the Deployment.",
+            "type": "boolean"
         },
         "terminationGracePeriodSeconds": {
             "$id": "#/properties/terminationGracePeriodSeconds",
@@ -603,15 +556,6 @@
             ],
             "default": {}
         },
-        "envSecretNames": {
-            "$id": "#/properties/envSecretNames",
-            "description": "[Deprecated] Use `envFrom` instead",
-            "type": "array",
-            "uniqueItems": true,
-            "items": {
-                "$ref": "#/definitions/KubernetesName"
-            }
-        },
         "envFrom": {
             "$id": "#/properties/envFrom",
             "description": "List of sources to populate environment variables in the pod.",
@@ -681,6 +625,71 @@
                     "description": "Use this istio gateway for incoming traffic.",
                     "type": "string",
                     "default": "kyma-gateway.kyma-system.svc.cluster.local"
+                },
+                "rules": {
+                    "$id": "#/properties/expose/properties/rules",
+                    "description": "Rules represents collection of Rule to apply.",
+                    "type": "array",
+                    "items": {
+                        "description": "A rule to apply.",
+                        "type": "object"
+                    },
+                    "default": [
+                        {
+                          "accessStrategies": [
+                            {
+                              "handler": "allow"
+                            }
+                          ],
+                          "methods": [
+                            "GET",
+                            "POST",
+                            "PUT",
+                            "PATCH",
+                            "DELETE",
+                            "HEAD"
+                          ],
+                          "path": "/.*"
+                        }
+                    ]
+                }
+            }
+        },
+        "networkSecurity": {
+            "$id": "#/properties/bindings",
+            "title": "Network Security configuration",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "allowNamespaceInternal": {
+                    "type": "boolean"
+                },
+                "ingress": {
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "minProperties": 1,
+                        "additionalProperties": false,
+                        "properties": {
+                            "namespace": {
+                                "type": "string"
+                            },
+                            "podLabelsSelector": {
+                                "type": "object",
+                                "minProperties": 1,
+                                "patternProperties": {
+                                    "^.*$": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -733,58 +742,29 @@
                                     "description": "List of sources to populate parameters.",
                                     "type": "array",
                                     "items": {
-                                        "anyOf": [
-                                            {
+                                        "type": "object",
+                                        "description": "Kubernetes Secret as a parameters source.",
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "secretKeyRef": {
                                                 "type": "object",
-                                                "description": "Kubernetes Secret as a parameters source.",
                                                 "additionalProperties": false,
+                                                "required": [
+                                                    "name",
+                                                    "key"
+                                                ],
                                                 "properties": {
-                                                    "secretKeyRef": {
-                                                        "type": "object",
-                                                        "additionalProperties": false,
-                                                        "required": [
-                                                            "name",
-                                                            "key"
-                                                        ],
-                                                        "properties": {
-                                                            "name": {
-                                                                "description": "Name of a Secret.",
-                                                                "type": "string"
-                                                            },
-                                                            "key": {
-                                                                "description": "Key in that Secret, which contains a string that represents the json to include in the set of parameters to be sent to the broker.",
-                                                                "type": "string"
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            {
-                                                "type": "object",
-                                                "description": "Kubernetes Config Map as a parameters source.",
-                                                "additionalProperties": false,
-                                                "properties": {
-                                                    "configMapKeyRef": {
-                                                        "type": "object",
-                                                        "additionalProperties": false,
-                                                        "required": [
-                                                            "name",
-                                                            "key"
-                                                        ],
-                                                        "properties": {
-                                                            "name": {
-                                                                "description": "Name of a Config Map",
-                                                                "$ref": "#/definitions/KubernetesName"
-                                                            },
-                                                            "key": {
-                                                                "description": "Key in that Config Map, which contains a string that represents the json to include in the set of parameters to be sent to the broker.",
-                                                                "type": "string"
-                                                            }
-                                                        }
+                                                    "name": {
+                                                        "description": "Name of a Secret.",
+                                                        "type": "string"
+                                                    },
+                                                    "key": {
+                                                        "description": "Key in that Secret, which contains a string that represents the json to include in the set of parameters to be sent to the broker.",
+                                                        "type": "string"
                                                     }
                                                 }
                                             }
-                                        ]
+                                        }
                                     }
                                 },
                                 "credentialsRotationPolicy": {

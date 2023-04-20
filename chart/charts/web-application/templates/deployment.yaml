@@ -32,10 +32,8 @@ spec:
         {{- $envFromVars.vars | toYaml | nindent 8}}
         {{- end }}
         env:
-        {{- if .Values.bindings }}
         - name: SERVICE_BINDING_ROOT
           value: /bindings
-        {{- end }}
         - name: PORT
           value: {{ .Values.port | quote }}
         - name: TMPDIR
@@ -52,40 +50,40 @@ spec:
         - name: APPLICATION_URI
           value: {{ include "web-application.applicationUri" . }}
         {{- end }}
-        {{- $health := .Values.health_check | default .Values.health }}
         livenessProbe:
-        {{- if $health.liveness.path }}
+        {{- if .Values.health.liveness.path }}
           httpGet:
-            path: {{ $health.liveness.path }}
+            path: {{ .Values.health.liveness.path }}
             port: http
         {{- else }}
           tcpSocket:
             port: {{ .Values.port }}
         {{- end }}
         readinessProbe:
-        {{- if $health.readiness.path }}
+        {{- if .Values.health.readiness.path }}
           httpGet:
-            path: {{ $health.readiness.path }}
+            path: {{ .Values.health.readiness.path }}
             port: http
         {{- else }}
           tcpSocket:
             port: {{ .Values.port }}
         {{- end }}
         startupProbe:
-        {{- if $health.liveness.path }}
+        {{- if .Values.health.liveness.path }}
           httpGet:
-            path: {{ $health.liveness.path }}
+            path: {{ .Values.health.liveness.path }}
             port: http
         {{- else }}
           tcpSocket:
             port: {{ .Values.port }}
         {{- end }}
-          {{- $startupTimeout := .Values.startupTimeout | default .Values.startupTimeoutSeconds }}
-          failureThreshold: {{ div (add1  $startupTimeout) 2 }}
+          failureThreshold: {{ div (add1  .Values.startupTimeoutSeconds) 2 }}
           periodSeconds: 2
         volumeMounts:
         - name: tmp
           mountPath: /tmp
+        - name: bindings-root
+          mountPath: /bindings
         {{- range $volume := .Values.additionalVolumes }}
         - name: {{ $volume.name | quote }}
           {{- toYaml $volume.volumeMount  | nindent 10 }}
@@ -99,14 +97,13 @@ spec:
             drop:
             - ALL
           privileged: false
-          readOnlyRootFilesystem: false
+          readOnlyRootFilesystem: {{ .Values.readOnlyRootFilesystem | default false }}
           seccompProfile:
             type: RuntimeDefault
       restartPolicy: Always
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       securityContext:
         runAsNonRoot: true
-      {{- if (include "web-application.ha" .) }}
       topologySpreadConstraints:
       {{- range $constraint := .Values.availability.topologySpreadConstraints }}
       - labelSelector:
@@ -115,10 +112,11 @@ spec:
         topologyKey: {{ $constraint.topologyKey }}
         whenUnsatisfiable: {{ $constraint.whenUnsatisfiable }}
       {{- end }}
-      {{- end }}
       volumes:
       - emptyDir: {}
         name: tmp
+      - emptyDir: {}
+        name: bindings-root
       {{- include "web-application.serviceVolumes" . | nindent 6 }}
       {{- range $volume := .Values.additionalVolumes }}
       -

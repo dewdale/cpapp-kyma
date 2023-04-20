@@ -57,6 +57,7 @@ health:
   readiness:
     path: /healthz
 
+# readOnlyRootFilesystem: false
 terminationGracePeriodSeconds: 30
 startupTimeoutSeconds: 30
 
@@ -90,8 +91,33 @@ expose:
   enabled: true
   gateway: kyma-gateway.kyma-system.svc.cluster.local
   # host: ""
+  rules:
+  - accessStrategies:
+    - handler: allow
+    methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - HEAD
+    path: /.*
 
-# bindings:
+networkSecurity:
+  enabled: true
+  # allowNamespaceInternal: true
+  ingress: []
+  #   - namespace: my-namespace
+  #     podLabelsSelector:
+  #       app: my-app
+
+bindings:
+  defaultProperties:
+    credentialsRotationPolicy:
+      enabled: false
+      rotationFrequency: "720h"
+      rotatedBindingTTL: "24h"
+
 #   ui5-repo-servicerepo:
 #     serviceInstanceName: ui5-repo-instance
 #     externalName: ui5-kyma-binding
@@ -103,7 +129,7 @@ expose:
 #           key: test
 #           name: test
 #     credentialsRotationPolicy:
-#       enabled: true
+#       enabled: false
 #   hana:
 #     serviceInstanceName: hana-manual
 #   portal:

@@ -1,4 +1,4 @@
-{{ if .Values.expose.enabled}}
+{{- if .Values.expose.enabled -}}
 apiVersion: gateway.kyma-project.io/v1beta1
 kind: APIRule
 metadata:
@@ -11,14 +11,5 @@ spec:
     name: {{ include "web-application.fullname" . }}
     port: {{ .Values.port }}
   rules:
-  - accessStrategies:
-    - handler: allow
-    methods:
-    - GET
-    - POST
-    - PUT
-    - PATCH
-    - DELETE
-    - HEAD
-    path: /.*
-{{ end }}
+    {{- toYaml .Values.expose.rules | nindent 6 }}
+{{- end }}

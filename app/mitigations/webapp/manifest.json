@@ -1,5 +1,5 @@
 {
-  "_version": "1.49.0",
+  "_version": "1.32.0",
   "sap.app": {
     "id": "ns.mitigations",
     "type": "application",
@@ -9,11 +9,16 @@
     },
     "title": "{{appTitle}}",
     "description": "{{appDescription}}",
-    "resources": "resources.json",
-    "sourceTemplate": {
-      "id": "@sap/generator-fiori:worklist",
-      "version": "1.9.3",
-      "toolsId": "17cc7d84-1902-4103-ae0f-02031cca5c6a"
+    "dataSources": {
+      "mainService": {
+        "uri": "/service/risk/",
+        "type": "OData",
+        "settings": {
+          "annotations": [],
+          "localUri": "localService/metadata.xml",
+          "odataVersion": "4.0"
+        }
+      }
     },
     "crossNavigation": {
       "inbounds": {
@@ -24,16 +29,6 @@
           },
           "semanticObject": "Mitigations",
           "action": "display"
-        }
-      },
-    "dataSources": {
-      "mainService": {
-        "uri": "/service/risk/",
-        "type": "OData",
-        "settings": {
-          "annotations": [],
-          "localUri": "localService/metadata.xml",
-          "odataVersion": "4.0"
         }
       }
     }
@@ -57,16 +52,11 @@
   "sap.ui5": {
     "flexEnabled": true,
     "dependencies": {
-      "minUI5Version": "1.112.1",
+      "minUI5Version": "1.97.0",
       "libs": {
-        "sap.m": {},
         "sap.ui.core": {},
-        "sap.f": {},
-        "sap.suite.ui.generic.template": {},
-        "sap.ui.comp": {},
-        "sap.ui.generic.app": {},
-        "sap.ui.table": {},
-        "sap.ushell": {}
+        "sap.m": {},
+        "sap.f": {}
       }
     },
     "contentDensities": {
@@ -87,7 +77,8 @@
           "synchronizationMode": "None",
           "operationMode": "Server",
           "autoExpandSelect": true,
-          "earlyRequests": true
+          "earlyRequests": true,
+          "groupId": "$direct"
         }
       }
     },
@@ -152,6 +143,11 @@
       "type": "XML",
       "async": true,
       "id": "app"
+      
     }
+  },
+  "sap.cloud": {
+    "public": true,
+    "service": "cpapp.service"
   }
 }
